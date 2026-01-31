@@ -6,7 +6,7 @@ from watchdog.events import FileSystemEventHandler
 
 # --- CONFIGURATION ---
 # Change this to your folder path (Example for Windows: "C:/Users/Name/Downloads")
-TRACK_PATH = "C:\Users\REC LIB7\Downloads"
+TRACK_PATH = r"C:\Users\REC LIB7\Downloads"
 
 EXTENSION_MAP = {
     # Images
@@ -21,11 +21,10 @@ EXTENSION_MAP = {
 
 class MoverHandler(FileSystemEventHandler):
     # This function runs whenever a file is created or moved into the folder
-    def on_modified(self, event):
+   def on_modified(self, event):
         for filename in os.listdir(TRACK_PATH):
             file_path = os.path.join(TRACK_PATH, filename)
             
-            # Skip if it's a folder or a hidden file
             if os.path.isdir(file_path) or filename.startswith('.'):
                 continue
                 
@@ -35,13 +34,21 @@ class MoverHandler(FileSystemEventHandler):
                 folder_name = EXTENSION_MAP[extension]
                 dest_path = os.path.join(TRACK_PATH, folder_name)
                 
-                # Create the category folder if it doesn't exist
                 if not os.path.exists(dest_path):
                     os.makedirs(dest_path)
-                
-                # Move the file
-                shutil.move(file_path, os.path.join(dest_path, filename))
-                print(f"Successfully organized: {filename} -> {folder_name}")
+
+                # --- NEW SAFETY LOGIC ---
+                try:
+                    # Give the system 1 second to release the file lock
+                    time.sleep(1) 
+                    shutil.move(file_path, os.path.join(dest_path, filename))
+                    print(f"Successfully organized: {filename} -> {folder_name}")
+                except PermissionError:
+                    # If file is busy, just skip it this time
+                    print(f"File busy, skipping for now: {filename}")
+                    continue
+                except Exception as e:
+                    print(f"Error moving {filename}: {e}")
 
 # --- EXECUTION ---
 if __name__ == "__main__":
